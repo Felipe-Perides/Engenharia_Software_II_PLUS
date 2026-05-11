@@ -33,7 +33,9 @@ services:
       - TF_VAR_db_user=${DB_USER:-plus}
       - TF_VAR_db_password=${DB_PASSWORD:-plus_secret}
       - TF_VAR_ms_auth_port=${MS_AUTH_PORT:-3001}
-    entrypoint: ["/bin/sh", "-c", "rm -f terraform.tfstate terraform.tfstate.backup && terraform init && terraform apply -auto-approve"]
+    # Não apagar terraform.tfstate: o `make setup` já corre apply no host e partilha este diretório.
+    # Apagar o state e voltar a apply tentaria recriar buckets/RDS que já existem no Ministack e falha com exit 1.
+    entrypoint: ["/bin/sh", "-c", "terraform init && terraform apply -auto-approve"]
     depends_on:
       ministack:
         condition: service_healthy
