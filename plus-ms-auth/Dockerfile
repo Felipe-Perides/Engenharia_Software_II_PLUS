@@ -8,4 +8,4 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 EXPOSE 3001
-CMD ["node", "src/index.js"]
+CMD ["sh", "-c", "node src/init-db.js && node src/index.js"]

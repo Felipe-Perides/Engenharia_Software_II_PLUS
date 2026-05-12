@@ -47,6 +47,8 @@ services:
     container_name: plus-ms-auth
     ports:
       - "${MS_AUTH_PORT:-3001}:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=development
       - PORT=3001
@@ -55,8 +57,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - AWS_ENDPOINT=http://ministack:4566
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
+      - DB_HOST=ministack
+      - DB_PORT=5432
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
@@ -69,11 +71,13 @@ services:
     build:
       context: ../plus-mfe-auth
       dockerfile: Dockerfile
+      args:
+        - VITE_MS_AUTH_URL=${VITE_MS_AUTH_URL}
     container_name: plus-mfe-auth
     ports:
       - "${MFE_AUTH_PORT:-4001}:4001"
     environment:
-      - VITE_MS_AUTH_URL=http://localhost:3001
+      - VITE_MS_AUTH_URL=${VITE_MS_AUTH_URL}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
