@@ -1142,5 +1142,104 @@
     },
     "role": "assistant",
     "content": "Vou verificar o `.env.example` e o `.env` atual em\npara ver quais variáveis precisam ser configuradas."
+  },
+  {
+    "timestamp": "2026-05-11T01:18:37.660Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "user",
+    "content": "Respondendo suas perguntas:\r\n\r\n1. Sim. As roles podem ser ADMIN, STAFF e MANAGER por enquanto.\r\n\r\n2. Olhe em @file:terraform.\r\n\r\n3. Vamos fazer em Typescript.\r\n\r\n4. Vitest.\r\n\r\n5. Ambos no Docker.\r\n\r\n6. Podes seguir padrões comuns.\r\n\r\nApenas diga o que você entendeu das respostas, ainda não faça implementações."
+  },
+  {
+    "timestamp": "2026-05-11T01:18:37.660Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "assistant",
+    "content": "Perfeito! Confirmo meu entendimento das respostas:\n\n## **Entendimento consolidado:**\n\n### 1. **RBAC com 3 roles**\n   - `ADMIN`, `STAFF`, `MANAGER`\n   - Serão codificados no JWT (no payload, ex: `{ userId, email, role }`)\n   - O MS validará role nos endpoints conforme necessário\n\n### 2. **Infraestrutura (Terraform)**\n   - PostgreSQL 15.3 provisionado automaticamente pelo Ministack\n   - Banco: `plus_auth` (já está em `aws_db_instance`)\n   - Usuário/senha: via variáveis `.env`\n   - **Pergunta de esclarecimento**: As migrations de tabelas (users, roles, etc.) devem ser executadas automaticamente ao subir o container ou criadas manualmente via script?\n\n### 3. **MS em TypeScript**\n   - Node.js + Express + TypeScript\n   - Endpoints com tipagem forte\n   - Será containerizado\n\n### 4. **Testes com Vitest**\n   - Testes unitários usando Vitest\n   - Deve haver cobertura de testes para CI/CD\n\n### 5. **Releases em Docker**\n   - MS: build → imagem Docker (registry local/Docker Hub)\n   - MFE: build → imagem Docker (Nginx serving static)\n   - Ambas orquestradas pelo `docker-compose.yml` do plus-infra\n\n### 6. **UI da LoginPage**\n   - React + TypeScript + MUI\n   - Design system padrão (tema MUI, componentes material)\n   - Integração com MS via `VITE_MS_AUTH_URL`\n\n---\n\n**Última dúvida antes de começar:**\n\nO arquivo `main.tf` do Terraform configura o **API Gateway** (routes `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`) que faz proxy para o MS na porta 3001. Isso significa que:\n- **Via Docker (porta 3001 direto)**: acessa `http://localhost:3001/auth/login`\n- **Via API Gateway (porta 4566)**: acessa `http://localhost:4566/restapis/<api-id>/v1/_user_request_/auth/login`\n\nO MFE deve usar qual URL? A porta 3001 ou o API Gateway?"
+  },
+  {
+    "timestamp": "2026-05-11T01:51:48.840Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "user",
+    "content": "Respondendo a pergunta \"As migrations de tabelas (users, roles, etc.) devem ser executadas automaticamente ao subir o container ou criadas manualmente via script?\": faça a escolha que resultará na solução mais simples.\r\n\r\nRespondendo a pergunta da URL do MFE: faça via API Gateway.\r\n\r\nNão implemente ainda, apenas me diga o que entendeu."
+  },
+  {
+    "timestamp": "2026-05-11T15:14:21.116Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "user",
+    "content": "Agora quero que você monte uma checklist cronológica (em ordem) do que deve ser feito para alcançar todos os objetivos do trabalho. Separe a checklist por etapas (tópicos). Para cada item da lista, diga qual dos 4 diretórios será afetado."
+  },
+  {
+    "timestamp": "2026-05-11T15:14:21.116Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "assistant",
+    "content": "Vou criar uma checklist cronológica organizada por etapas. Deixe-me estruturar:\n\n## **Checklist Cronológica por Etapas**\n\n### **ETAPA 1: Infraestrutura Base**\n- [ ] Configurar `.env` com variáveis (JWT_SECRET, DB credentials, API Gateway URL) — **plus-infra**\n- [ ] Criar script SQL de inicialização do banco (schema, tabelas users com roles) — **plus-infra**\n- [ ] Ajustar `docker-compose.yml` para rodas todas as imagens — **plus-infra**\n- [ ] Validar Makefile com os comandos necessários — **plus-infra**\n- [ ] Configurar variáveis de ambiente para MFE apontar ao API Gateway — **plus-infra**\n\n---\n\n### **ETAPA 2: Microsserviço de Autenticação (MS)**\n- [ ] Setup inicial: Node.js + TypeScript + Express — **plus-ms-auth**\n- [ ] Instalar dependências: `jsonwebtoken`, `bcryptjs`, `pg`, `dotenv` — **plus-ms-auth**\n- [ ] Estruturar pastas: `src/routes`, `src/middleware`, `src/services`, `src/models`, `src/utils` — **plus-ms-auth**\n- [ ] Implementar conexão com PostgreSQL (pool) — **plus-ms-auth**\n- [ ] Implementar endpoint `POST /auth/login` (email + senha → JWT + refresh) — **plus-ms-auth**\n- [ ] Implementar endpoint `POST /auth/refresh` (refresh token → novo access token) — **plus-ms-auth**\n- [ ] Implementar endpoint `POST /auth/logout` (encerrar sessão) — **plus-ms-auth**\n- [ ] Implementar endpoint `GET /auth/me` (retornar dados do usuário autenticado) — **plus-ms-auth**\n- [ ] Implementar RBAC (validar roles ADMIN, STAFF, MANAGER no JWT) — **plus-ms-auth**\n- [ ] Criar testes unitários (Vitest) para cada endpoint — **plus-ms-auth**\n- [ ] Gerar documentação Swagger/OpenAPI — **plus-ms-auth**\n- [ ] Criar Dockerfile com multi-stage build — **plus-ms-auth**\n- [ ] Atualizar README do MS — **plus-ms-auth**\n- [ ] Configurar GitHub Actions CI/CD (testes, build Docker) — **plus-ms-auth**\n\n---\n\n### **ETAPA 3: Microfrontend de Autenticação (MFE)**\n- [ ] Setup inicial: React 18 + TypeScript + Vite — **plus-mfe-auth**\n- [ ] Instalar dependências: MUI, axios, React Router, Vite Federation — **plus-mfe-auth**\n- [ ] Estruturar pastas: `src/components`, `src/pages`, `src/services`, `src/hooks`, `src/types` — **plus-mfe-auth**\n- [ ] Configurar Module Federation no `vite.config.js` — **plus-mfe-auth**\n- [ ] Criar `LoginPage.jsx` com formulário (email + senha + validação) — **plus-mfe-auth**\n- [ ] Implementar serviço de autenticação (chamar MS via API Gateway) — **plus-mfe-auth**\n- [ ] Implementar gerenciamento de tokens (localStorage/sessionStorage) — **plus-mfe-auth**\n- [ ] Implementar testes unitários (Vitest) do LoginPage — **plus-mfe-auth**\n- [ ] Criar manual de UI (documentação Markdown com screenshots/instruções) — **plus-mfe-auth**\n-"
+  },
+  {
+    "timestamp": "2026-05-11T16:30:19.937Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "user",
+    "content": "Contexto para alinhar a checklist ao repo Plus (professor + decisões do grupo):\r\n\r\nAPI Gateway (Terraform): Em plus-infra/terraform/main.tf, as integrações HTTP_PROXY apontam hoje para http://plus-ms-auth:3001/login, /refresh, /logout, /me. O plus-ms-auth expõe /auth/login, /auth/refresh, /auth/logout, /auth/me. Inclui na checklist corrigir esses URIs para /auth/...; senão o MFE com VITE_MS_AUTH_URL no Gateway falha mesmo com o resto certo.\r\n\r\nCORS no MS: O browser chama de localhost:3000 / 4001 para localhost:3001 (ou Gateway). Sem CORS no Express, o login tende a dar “failed to fetch”. Acrescenta dependência + middleware CORS nas origens locais do shell/MFE.\r\n\r\nMFE em TypeScript: Se o MFE for TS, o login deve ser LoginPage.tsx (não .jsx). axios é opcional; fetch basta.\r\n\r\nValidação final: Na Etapa 6, testar dois caminhos: (a) MS direto :3001 com POST /auth/login; (b) mesmo fluxo via URL do API Gateway (4566/.../_user_request_), porque são pipelines de rede diferentes.\r\n\r\n\r\nTendo estes ajustes em mente, faça um arquivo em markdown no diretório principal com a checklist pensada (com os ajustes necessários)."
+  },
+  {
+    "timestamp": "2026-05-11T16:30:19.937Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "assistant",
+    "content": "Verificando estrutura do repositório para garantir onde criar o checklist.\nCriei o checklist ajustado em\nno diretório principal com os pontos cronológicos e os diretórios afetados, incluindo:\n\n- correção das URIs do API Gateway para `/auth/...`\n- adição de CORS no MS para `localhost:3000` e `localhost:4001`\n- conversão do MFE para TypeScript (`LoginPage.tsx`)\n- validação separada de fluxo direto MS e via API Gateway"
+  },
+  {
+    "timestamp": "2026-05-11T17:52:06.508Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "user",
+    "content": "Certo, vamos para a Etapa 1. Para todas as etapas (esta e as seugintes), se tiver algo que você não consiga fazer, me informe para eu aplicar.\r\n\r\nVamos item por item, começando com \"configurar .env em plus-infra com variáveis de ambiente\"."
+  },
+  {
+    "timestamp": "2026-05-11T17:52:06.508Z",
+    "source": "github_copilot",
+    "git_branch": "develop",
+    "git_user_name": "Bernardo Dallarosa",
+    "call_context": {
+      "cwd": "c:\\Users\\Bernardo\\Desktop\\t1-engenharia\\Engenharia_Software_II_PLUS"
+    },
+    "role": "assistant",
+    "content": "Vou verificar o `.env.example` e o `.env` atual em\npara ver quais variáveis precisam ser configuradas."
   }
 ]

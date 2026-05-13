@@ -1,25 +1,19 @@
-import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState, useCallback } from "react";
+import ShellLoginPage from "./ShellLoginPage";
 
-// Import lazy do microfrontend remoto
-const LoginPage = lazy(() => import("mfe_auth/LoginPage"));
+const ACCESS_TOKEN_KEY = "plus.auth.token";
+const REFRESH_TOKEN_KEY = "plus.auth.refresh";
 
-function PrivateRoute({ children }) {
-  const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/login" replace />;
+function hasStoredSession() {
+  return !!localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-function Dashboard() {
+function Dashboard({ onLogout }) {
   return (
-    <div style={{ padding: 32, fontFamily: "sans-serif" }}>
+    <div style={{ padding: 32, fontFamily: "system-ui, sans-serif" }}>
       <h1>Plus — Dashboard</h1>
       <p>Bem-vindo ao sistema de gestão de estoque.</p>
-      <button
-        onClick={() => {
-          localStorage.clear();
-          window.location.href = "/login";
-        }}
-      >
+      <button type="button" onClick={onLogout}>
         Sair
       </button>
     </div>
@@ -27,28 +21,24 @@ function Dashboard() {
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Suspense fallback={<p>Carregando...</p>}>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <LoginPage
-                onLogin={() => (window.location.href = "/")}
-              />
-            }
-          />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
-  );
+  const [authed, setAuthed] = useState(() => hasStoredSession());
+
+  const handleLoggedIn = useCallback((token, refresh) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    if (refresh) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+    }
+    setAuthed(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    setAuthed(false);
+  }, []);
+
+  if (authed) {
+    return <Dashboard onLogout={handleLogout} />;
+  }
+  return <ShellLoginPage onLoggedIn={handleLoggedIn} />;
 }

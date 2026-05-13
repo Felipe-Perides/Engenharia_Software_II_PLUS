@@ -1,33 +1,26 @@
 # plus-shell
 
-Shell App do projeto **Plus** — microfrontend host.
+Shell App do projeto **Plus** — uma única página em que **login** e **dashboard** alternam com `useState` (sem React Router), para não depender de URLs `/login`, hash, nem do servidor servir paths do SPA.
 
-Orquestra os microfrontends remotos via **Module Federation**, consumindo o `plus-mfe-auth` para renderizar as rotas de autenticação. Construído com React + Vite.
+A rota de login usa **`fetch` no próprio bundle** contra o `plus-ms-auth` (`VITE_MS_AUTH_URL`, por omissão `http://localhost:3001`).
 
 ---
 
 ## Tecnologias
 
-- React 18 + React Router DOM 6
+- React 18 (sem React Router na v1 do shell — login e dashboard alternam com estado local)
 - Vite 5
-- `@originjs/vite-plugin-federation` — Module Federation
 - `@vitejs/plugin-react`
 
 ---
 
-## Module Federation
-
-Este app atua como **host**, consumindo os seguintes remotos:
-
-| Remote | URL padrão |
-|---|---|
-| `mfe_auth` | `http://localhost:4001/assets/remoteEntry.js` |
-
-A URL do remote pode ser sobrescrita via variável de ambiente em build time:
+## Variáveis de ambiente (build)
 
 | Variável | Descrição |
 |---|---|
-| `MFE_AUTH_URL` | URL do `remoteEntry.js` do `plus-mfe-auth` |
+| `VITE_MS_AUTH_URL` | Base URL do `plus-ms-auth` para `POST /auth/login` (ex.: `http://localhost:3001`) |
+
+No Docker, `plus-infra` passa `VITE_MS_AUTH_BROWSER` como build-arg (ver `docker-compose.yml`).
 
 ---
 
@@ -50,10 +43,10 @@ npm run dev
 
 Acesse: http://localhost:3000
 
-> O `plus-mfe-auth` precisa estar rodando em `http://localhost:4001` para que o remote seja carregado corretamente.
+Garante que o `plus-ms-auth` está acessível na URL do build (`VITE_MS_AUTH_URL`, por omissão `http://localhost:3001`). Porque o shell **não** usa o API Gateway no browser em local, vê a nota ao **item 20** no `CHECKLIST.md` e a secção **Gateway vs MS** no README do `plus-mfe-auth`.
 
 ---
 
 ## Executando com a stack completa
 
-Este serviço é orquestrado pelo `plus-infra`. Consulte o [README do plus-infra](https://github.com/pucrs-sweii-2026-1-30/plus-infra).
+Este serviço é orquestrado pelo `plus-infra`. Consulte o README do `plus-infra`.

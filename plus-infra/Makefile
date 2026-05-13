@@ -69,8 +69,8 @@ setup: .env tf-init
 	@$(MAKE) wait-ministack
 	@$(MAKE) tf-apply
 	@$(MAKE) sync-vite-gateway
-	@echo "[make] Rebuild do MFE com VITE_MS_AUTH_URL atual..."
-	$(COMPOSE) build plus-mfe-auth
+	@echo "[make] Rebuild do MFE e do shell com variáveis de build atuais..."
+	$(COMPOSE) build plus-mfe-auth plus-shell
 	@echo "[make] Subindo todos os serviços..."
 	$(COMPOSE) up -d
 	@echo "[make] Setup concluído."

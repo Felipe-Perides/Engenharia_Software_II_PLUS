@@ -117,6 +117,8 @@ Este checklist foi preparado para acompanhar a entrega do trabalho de T1, focand
     - Usar endpoint `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`
     - Diretório afetado: `plus-mfe-auth`
 
+> **Nota (local / browser — item 20):** O código usa `import.meta.env.VITE_MS_AUTH_URL` no bundle. O `make setup` / `sync-vite-gateway` mantém `VITE_MS_AUTH_URL` no `.env` com o URL do API Gateway (Terraform), como referência e para testes com `curl` ou clientes sem CORS de browser. No **Docker**, o build do MFE (e do shell) usa por omissão **`VITE_MS_AUTH_BROWSER=http://localhost:3001`**, para o browser chamar **diretamente** o `plus-ms-auth`: o Gateway em LocalStack (`4566`) costuma **não** devolver CORS utilizável entre `localhost:3000` / `4001` e `4566`, o que quebra `fetch` no browser. Isto não invalida o Gateway na **arquitetura** (Terraform, integrações); só documenta que, em **local**, o caminho browser→Gateway fica **desativado** por pragmatismo até haver CORS no emulador ou um proxy na mesma origem.
+
 21. Implementar gerenciamento de token no MFE:
     - Armazenar access token / refresh token de forma segura
     - Utilizar `localStorage` ou `sessionStorage`
