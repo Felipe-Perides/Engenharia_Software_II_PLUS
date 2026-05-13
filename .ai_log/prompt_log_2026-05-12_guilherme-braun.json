@@ -1,0 +1,82 @@
+/explain No inputs were found in config file 'c:/Users/Gustavo/Engenharia_Software_II_PLUS/plus-ms-auth/tsconfig.json'. Specified 'include' paths were '["src/**/*"]' and 'exclude' paths were '["node_modules","dist","tests"]'.
+
+The error means tsc did not find any TypeScript input files under src/**/*.
+
+Your tsconfig.json currently only includes:
+
+"include": ["src/**/*"]
+So TypeScript looks for .ts, .tsx, .js, etc. under src. If that folder does not exist or has no matching files, you get this error.
+
+Possible fixes:
+
+If your sources are in a different folder, update include accordingly. Example:
+"include": ["src/**/*", "tests/**/*"]
+If your project files are in the repo root instead of src, change it to:
+"include": ["**/*"]
+If this is a JS project and you want to compile JS too, add:
+"allowJs": true
+
+Optimized tool selection
+
+Verificando a estrutura atual de plus-ms-auth para implementar corretamente app.ts e server.ts.
+
+Agora verifico o tsconfig.json e o ambiente para confirmar que os arquivos serão compilados corretamente.
+
+Read tsconfig.json
+
+Implementação de app.ts e server.ts
+src/app.ts
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+import { authRouter } from "./routes/auth";
+import { swaggerSpec } from "./swagger/config";
+
+export const app = express();
+
+app.use(express.json());
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000", // plus-shell
+      "http://localhost:4001", // plus-mfe-auth
+    ],
+    credentials: true,
+  })
+);
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/auth", authRouter);
+src/server.ts
+import { app } from "./app";
+
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`plus-ms-auth rodando na porta ${PORT}`);
+  console.log(`Documentação: http://localhost:${PORT}/docs`);
+});
+
+/explain Conversion of type 'typeof import("c:/Users/Gustavo/Engenharia_Software_II_PLUS/plus-ms-auth/node_modules/@types/bcryptjs/index")' to type '{ compare: Mock<Procedure | Constructable>; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+Types of property 'compare' are incompatible.
+Type '{ (s: string, hash: string): Promise<boolean>; (s: string, hash: string, callback?: ((err: Error | null, success: boolean) => void) | undefined, progressCallback?: ((percent: number) => void) | undefined): void; }' is not comparable to type 'Mock<Procedure | Constructable>'.
+Type '{ (s: string, hash: string): Promise<boolean>; (s: string, hash: string, callback?: ((err: Error | null, success: boolean) => void) | undefined, progressCallback?: ((percent: number) => void) | undefined): void; }' is not comparable to type 'MockInstance<Procedure | Constructable> & { (...args: any[]): any; new (...args: any[]): any; } & {}'.
+Type '{ (s: string, hash: string): Promise<boolean>; (s: string, hash: string, callback?: ((err: Error | null, success: boolean) => void) | undefined, progressCallback?: ((percent: number) => void) | undefined): void; }' is not comparable to type 'MockInstance<Procedure | Constructable>'.
+
+Use an unknown cast before narrowing the mocked bcrypt object:
+const mockBcrypt = bcrypt as unknown as { compare: ReturnType<typeof vi.fn> };
+So your snippet becomes:
+vi.mock("bcryptjs", () => ({
+  default: {
+    compare: vi.fn(),
+  },
+}));
+
+import { pool } from "../src/db/pool";
+import bcrypt from "bcryptjs";
+
+const mockPool = pool as { query: ReturnType<typeof vi.fn> };
+const mockBcrypt = bcrypt as unknown as { compare: ReturnType<typeof vi.fn> };
+This avoids the direct incompatible type conversion error.
