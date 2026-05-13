@@ -61,9 +61,11 @@ O `make setup`:
 1. Inicializa os providers Terraform (`terraform init`)
 2. Sobe o Ministack e aguarda ele estar saudável
 3. Provisiona os recursos AWS via `terraform apply` (S3, RDS, API Gateway)
-4. Sobe todos os demais serviços
+4. **Atualiza automaticamente** `VITE_MS_AUTH_URL` no `.env` com o URL do API Gateway (`terraform output -raw gateway_url`)
+5. Faz **rebuild** da imagem `plus-mfe-auth` para o Vite embutir esse URL no bundle
+6. Sobe todos os demais serviços (`docker compose up -d`)
 
-> O provisionamento também acontece automaticamente ao rodar `docker compose up` diretamente — o serviço `infra-provisioner` executa o Terraform antes de liberar os demais serviços.
+> **`docker compose up` sozinho** não corre Terraform: o Ministack tem de estar no ar e o state tem de existir (`make tf-apply` ou um `make setup` completo). Sem isso, faltam recursos no LocalStack e `terraform/rds.env` pode estar errado. Para o URL do Gateway no MFE sem `make setup`, use `make sync-vite-gateway` + `docker compose build plus-mfe-auth`.
 
 ---
 
@@ -72,14 +74,13 @@ O `make setup`:
 | Comando | Descrição |
 |---|---|
 | `make setup` | Setup completo: `terraform init` → Ministack → `terraform apply` → todos os serviços |
-| `make up` | Sobe todos os serviços (`docker compose up -d`) |
+| `make up` | Só sobe os containers (`docker compose up -d`). Exige Ministack + `make tf-apply` já corridos antes. |
 | `make down` | Para e remove os containers |
 | `make logs` | Acompanha os logs em tempo real |
 | `make reset` | Derruba tudo (inclusive volumes) e refaz o setup do zero |
 | `make tf-init` | Inicializa os providers Terraform |
 | `make tf-apply` | Provisiona os recursos no Ministack via Terraform |
-
----
+| `make sync-vite-gateway` | Escreve `VITE_MS_AUTH_URL` no `.env` a partir do output do Terraform (útil se não correr `make setup` completo) |
 
 ## URLs e portas locais
 
@@ -90,7 +91,9 @@ O `make setup`:
 | plus-mfe-auth | http://localhost:4001 | Microfrontend de autenticação |
 | Ministack | http://localhost:4566 | Emulador AWS |
 | API Gateway | `http://localhost:4566/restapis/<api-id>/v1/_user_request_` | Gateway para plus-ms-auth |
-| RDS (PostgreSQL) | `localhost:5432` | Banco provisionado pelo Ministack |
+| RDS (PostgreSQL) | Ver `terraform/rds.env` (gerado após `terraform apply`) | O LocalStack coloca o Postgres num sidecar; `DB_HOST` não é `ministack`. |
+
+> **`terraform/rds.env`:** gerado no **host** após `terraform apply` (`make tf-apply` ou passo 3 do `make setup`), com `DB_HOST` / `DB_PORT` do Postgres emulado (muitas vezes um `172.18.x.x` na rede Docker, não o hostname `ministack`). Se o `init-db` falhar com `ECONNREFUSED`, com o Ministack no ar corra `make tf-apply` e depois `docker compose up -d --force-recreate plus-ms-auth`.
 
 > O ID do API Gateway é gerado dinamicamente pelo Terraform e exibido no output do `make setup`.
 > Para consultar depois: `awslocal apigateway get-rest-apis`
@@ -110,7 +113,7 @@ O `make setup`:
 
 1. **Crie o repositório** no mesmo nível dos demais (ex: `plus-ms-inventory/`).
 
-2. **Adicione o serviço ao `docker-compose.yml`**, dependendo do `infra-provisioner`:
+2. **Adicione o serviço ao `docker-compose.yml`**, dependendo do Ministack estar saudável:
 
 ```yaml
 plus-ms-inventory:
@@ -126,8 +129,8 @@ plus-ms-inventory:
     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
   depends_on:
-    infra-provisioner:
-      condition: service_completed_successfully
+    ministack:
+      condition: service_healthy
   restart: unless-stopped
 ```
 

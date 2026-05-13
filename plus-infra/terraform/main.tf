@@ -86,7 +86,7 @@ resource "aws_api_gateway_integration" "auth_login" {
   http_method             = aws_api_gateway_method.auth_login.http_method
   type                    = "HTTP_PROXY"
   integration_http_method = "POST"
-  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/auth/login"
+  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/login"
 }
 
 # POST /auth/refresh
@@ -110,7 +110,7 @@ resource "aws_api_gateway_integration" "auth_refresh" {
   http_method             = aws_api_gateway_method.auth_refresh.http_method
   type                    = "HTTP_PROXY"
   integration_http_method = "POST"
-  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/auth/refresh"
+  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/refresh"
 }
 
 # POST /auth/logout
@@ -134,7 +134,7 @@ resource "aws_api_gateway_integration" "auth_logout" {
   http_method             = aws_api_gateway_method.auth_logout.http_method
   type                    = "HTTP_PROXY"
   integration_http_method = "POST"
-  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/auth/logout"
+  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/logout"
 }
 
 # GET /auth/me
@@ -158,7 +158,7 @@ resource "aws_api_gateway_integration" "auth_me" {
   http_method             = aws_api_gateway_method.auth_me.http_method
   type                    = "HTTP_PROXY"
   integration_http_method = "GET"
-  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/auth/me"
+  uri                     = "http://${var.ms_auth_host}:${var.ms_auth_port}/me"
 }
 
 # ─── Deployment ───────────────────────────────────────────────────────────────
@@ -177,4 +177,15 @@ resource "aws_api_gateway_deployment" "plus" {
 
 output "gateway_url" {
   value = "${var.endpoint}/restapis/${aws_api_gateway_rest_api.plus.id}/v1/_user_request_"
+}
+
+# Host/porta reais do Postgres (LocalStack: contentor sidecar, nao o hostname "ministack").
+output "rds_address" {
+  value       = aws_db_instance.auth.address
+  description = "Hostname ou IP do Postgres RDS emulado (usar no DB_HOST do plus-ms-auth)."
+}
+
+output "rds_port" {
+  value       = aws_db_instance.auth.port
+  description = "Porta TCP do Postgres."
 }

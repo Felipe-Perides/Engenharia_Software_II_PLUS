@@ -1,4 +1,4 @@
-.PHONY: setup up down logs reset tf-init tf-apply
+.PHONY: setup up down logs reset tf-init tf-apply sync-vite-gateway
 
 COMPOSE       = docker compose
 MINISTACK_URL = http://localhost:4566/_localstack/health
@@ -11,6 +11,9 @@ wait-ministack:
 
 tf-apply:
 	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tf-apply-from-env.ps1
+
+sync-vite-gateway:
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-vite-gateway-url.ps1
 
 .env:
 	@powershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Test-Path '.env')) { Copy-Item '.env.example' '.env'; Write-Host '[make] Arquivo .env não encontrado. Copiado de .env.example.'; Write-Host '[make] Revise JWT_SECRET etc. e rode make setup novamente.'; exit 1 }"
@@ -39,6 +42,10 @@ tf-apply:
 	TF_VAR_ms_auth_port=$${MS_AUTH_PORT:-3001} \
 	TF_VAR_endpoint=$${AWS_ENDPOINT:-http://localhost:4566} \
 	terraform -chdir=$(TF_DIR) apply -auto-approve
+	@sh scripts/write-rds-env.sh
+
+sync-vite-gateway:
+	@sh scripts/sync-vite-gateway-url.sh
 
 .env:
 	@if [ ! -f .env ]; then \
@@ -61,6 +68,9 @@ setup: .env tf-init
 	$(COMPOSE) up -d ministack
 	@$(MAKE) wait-ministack
 	@$(MAKE) tf-apply
+	@$(MAKE) sync-vite-gateway
+	@echo "[make] Rebuild do MFE com VITE_MS_AUTH_URL atual..."
+	$(COMPOSE) build plus-mfe-auth
 	@echo "[make] Subindo todos os serviços..."
 	$(COMPOSE) up -d
 	@echo "[make] Setup concluído."

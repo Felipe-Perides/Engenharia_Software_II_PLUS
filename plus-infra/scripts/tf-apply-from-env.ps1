@@ -36,4 +36,6 @@ Write-Host "[make] Sincronizando estado com S3/RDS já existentes no Ministack (
 
 Write-Host "[make] Provisionando recursos via Terraform..."
 & terraform "-chdir=terraform" apply -auto-approve
-exit $LASTEXITCODE
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& "$PSScriptRoot\write-rds-env.ps1"
+exit 0
