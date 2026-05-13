@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import { login } from "../api/authClient";
+import { PLUS_AUTH_LOGIN_SUCCESS_EVENT } from "../shellAuthEvents";
 import type { LoginResponse } from "../types/auth";
 
 export interface LoginPageProps {
@@ -60,6 +61,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setLoading(true);
     try {
       const data = await login({ email, password });
+      // O shell (host) escuta este evento: a prop `onLogin` pode não propagar via federation.
+      window.dispatchEvent(
+        new CustomEvent(PLUS_AUTH_LOGIN_SUCCESS_EVENT, { detail: data })
+      );
       onLogin?.(data);
     } catch (err) {
       setSubmitError(

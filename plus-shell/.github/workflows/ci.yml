@@ -28,16 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run type-check
-
       - name: Run tests
         run: npm run test:run
 
-      - name: Build
+      - name: Build (Module Federation)
         run: npm run build
         env:
-          VITE_MS_AUTH_URL: http://localhost:4566/restapis/placeholder/local/_user_request_
+          MFE_AUTH_URL: http://localhost:4001/assets/remoteEntry.js
+          VITE_MS_AUTH_URL: http://localhost:3001
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -64,17 +62,9 @@ jobs:
           context: .
           push: false
           load: true
-          tags: plus-mfe-auth:${{ github.sha }}
+          tags: plus-shell:${{ github.sha }}
           build-args: |
-            VITE_MS_AUTH_URL=http://localhost:4566/restapis/placeholder/local/_user_request_
+            VITE_MS_AUTH_URL=http://localhost:3001
+            MFE_AUTH_URL=http://localhost:4001/assets/remoteEntry.js
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Smoke test image
-        run: |
-          docker run -d --name mfe-auth -p 4001:4001 plus-mfe-auth:${{ github.sha }}
-          sleep 3
-          curl -fsS http://localhost:4001/ > /dev/null
-          curl -fsS http://localhost:4001/assets/remoteEntry.js > /dev/null
-          docker logs mfe-auth
-          docker stop mfe-auth

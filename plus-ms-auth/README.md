@@ -4,6 +4,8 @@ Microsserviço de autenticação do projeto **Plus**.
 
 Expõe uma API REST com JWT para login, refresh, logout e consulta do usuário autenticado. Persiste usuários em PostgreSQL (provisionado pelo Ministack via `plus-infra`). Implementa RBAC com as roles `ADMIN`, `STAFF` e `MANAGER`.
 
+Documentação de decisões da stack (Gateway, Federation, Docker): [**ADR-0001**](../ADR-0001-arquitetura-stack-plus.md).
+
 ---
 
 ## Tecnologias
@@ -15,6 +17,26 @@ Expõe uma API REST com JWT para login, refresh, logout e consulta do usuário a
 - PostgreSQL (`pg`)
 - Swagger/OpenAPI (`swagger-jsdoc` + `swagger-ui-express`)
 - Vitest — testes unitários
+
+---
+
+## OpenAPI / Swagger (consolidação)
+
+A especificação é gerada em tempo de arranque com **`swagger-jsdoc`** a partir
+das anotações **OpenAPI 3.0** nos ficheiros em `src/routes/*.ts` (em runtime
+compilado também se leem `dist/routes/*.js` — ver `src/swagger/config.ts`).
+A UI interactiva usa **`swagger-ui-express`**:
+
+| URL | Comportamento |
+|-----|----------------|
+| **`GET /`** | Redireciona para `/docs`. |
+| **`GET /docs`** | Swagger UI com esquema `bearerAuth` (JWT) para testar rotas protegidas. |
+
+**Implementação:** em `src/app.ts`, `app.use("/docs", ...swaggerUi.serve, swaggerUi.setup(swaggerSpec))` — o **spread** de `swaggerUi.serve` é obrigatório porque é um array de middlewares Express.
+
+Para alterar ou acrescentar endpoints documentados, edite os blocos `@openapi` /
+JSDoc nos handlers em `src/routes/auth.ts` e reinicie o servidor (ou regenere
+o build Docker).
 
 ---
 

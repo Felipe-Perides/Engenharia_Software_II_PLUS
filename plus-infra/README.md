@@ -65,9 +65,9 @@ O `make setup`:
 5. Faz **rebuild** das imagens `plus-mfe-auth` e `plus-shell` com as variáveis de build (ver `docker-compose.yml`)
 6. Sobe todos os demais serviços (`docker compose up -d`)
 
-> **Browser vs Gateway (local):** O `.env` mantém `VITE_MS_AUTH_URL` com o URL do **API Gateway** (Terraform). O `docker-compose` passa **`VITE_MS_AUTH_BROWSER`** ao build do MFE e do shell (por omissão `http://localhost:3001`) para o *fetch* no browser ir **directo** ao `plus-ms-auth` e evitar CORS frágil no `4566` em LocalStack. Explicação completa: `CHECKLIST.md` (nota ao item 20) e README do `plus-mfe-auth`.
+> **Browser vs Gateway (local):** O `.env` mantém `VITE_MS_AUTH_URL` com o URL do **API Gateway** (Terraform). O `docker-compose` passa **`VITE_MS_AUTH_BROWSER`** ao build do MFE e do shell (por omissão `http://localhost:3001`) para o *fetch* no browser ir **directo** ao `plus-ms-auth` e evitar CORS frágil no `4566` em LocalStack. Explicação completa: `CHECKLIST.md` (nota ao item 20) e README do `plus-mfe-auth`. O build do **plus-shell** usa ainda **`MFE_AUTH_URL`** (URL absoluto de `.../assets/remoteEntry.js`); o serviço **depende** do `plus-mfe-auth` saudável antes de subir.
 
-> **`docker compose up` sozinho** não corre Terraform: o Ministack tem de estar no ar e o state tem de existir (`make tf-apply` ou um `make setup` completo). Sem isso, faltam recursos no LocalStack e `terraform/rds.env` pode estar errado. Para o URL do Gateway no MFE sem `make setup`, use `make sync-vite-gateway` + `docker compose build plus-mfe-auth`.
+> **`docker compose up` sozinho** não corre Terraform: o Ministack tem de estar no ar e o state tem de existir (`make tf-apply` ou um `make setup` completo). Sem isso, faltam recursos no LocalStack e `terraform/rds.env` pode estar errado. Para o URL do Gateway no `.env` sem `make setup`, use `make sync-vite-gateway` + `docker compose build plus-mfe-auth plus-shell`.
 
 ---
 
@@ -145,3 +145,9 @@ MS_INVENTORY_PORT=3002
 4. **Se precisar de rotas no API Gateway ou outros recursos AWS**, adicione os recursos correspondentes em `terraform/main.tf` seguindo os padrões já existentes para S3, RDS e API Gateway.
 
 5. Rode `make reset` para recriar a stack com as novas configurações.
+
+---
+
+## ADR (decisões de arquitetura)
+
+O documento [**ADR-0001-arquitetura-stack-plus.md**](../ADR-0001-arquitetura-stack-plus.md) na pasta **pai** do `plus-infra` (mesmo nível que este repositório) consolida decisões técnicas, trade-offs, Module Federation, variáveis `VITE_MS_AUTH_BROWSER` / `MFE_AUTH_URL`, e a nota **browser vs API Gateway** em ambiente local.

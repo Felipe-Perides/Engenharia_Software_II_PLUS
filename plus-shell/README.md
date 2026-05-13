@@ -1,16 +1,22 @@
 # plus-shell
 
-Shell App do projeto **Plus** — uma única página em que **login** e **dashboard** alternam com `useState` (sem React Router), para não depender de URLs `/login`, hash, nem do servidor servir paths do SPA.
+Host **Plus** com **Module Federation** (`@originjs/vite-plugin-federation`): consome o remote `mfe_auth` e expõe o `LoginPage` do `plus-mfe-auth`. Sessão em `localStorage` na origem `:3000`; após login, o estado local alterna para o dashboard (sem React Router, para evitar os problemas de navegação vistos antes).
 
-A rota de login usa **`fetch` no próprio bundle** contra o `plus-ms-auth` (`VITE_MS_AUTH_URL`, por omissão `http://localhost:3001`).
+Decisões de arquitetura: [**ADR-0001**](../ADR-0001-arquitetura-stack-plus.md).
+
+**Salvaguardas (integração):**
+
+- **Vite 5** + **@originjs/vite-plugin-federation** alinhados ao `plus-mfe-auth`.
+- O MFE emite `plus-auth-login-success` em `window` após login; o shell **também escuta** esse evento, além da prop `onLogin`, porque a prop pode não propagar correctamente pelo remote.
+- O build Docker recebe **`MFE_AUTH_URL`** (URL absoluto do `remoteEntry.js`, por omissão `http://localhost:4001/assets/remoteEntry.js`).
 
 ---
 
 ## Tecnologias
 
-- React 18 (sem React Router na v1 do shell — login e dashboard alternam com estado local)
-- Vite 5
-- `@vitejs/plugin-react`
+- React 18
+- Vite 5 + `@vitejs/plugin-react` v4
+- `@originjs/vite-plugin-federation`
 
 ---
 
@@ -18,9 +24,26 @@ A rota de login usa **`fetch` no próprio bundle** contra o `plus-ms-auth` (`VIT
 
 | Variável | Descrição |
 |---|---|
-| `VITE_MS_AUTH_URL` | Base URL do `plus-ms-auth` para `POST /auth/login` (ex.: `http://localhost:3001`) |
+| `MFE_AUTH_URL` | URL absoluto do `remoteEntry.js` do MFE (ex.: `http://localhost:4001/assets/remoteEntry.js`). |
+| `VITE_MS_AUTH_URL` | Base URL do `plus-ms-auth` para o bundle do **remote** (o login corre no MFE); em dev local do shell só afecta se re-exportares lógica no host. |
 
-No Docker, `plus-infra` passa `VITE_MS_AUTH_BROWSER` como build-arg (ver `docker-compose.yml`).
+No Docker, ver `plus-infra/docker-compose.yml` (`MFE_AUTH_URL`, `VITE_MS_AUTH_BROWSER`).
+
+---
+
+## Desenvolvimento local
+
+1. Subir o **plus-mfe-auth** em `http://localhost:4001` (`npm run dev` ou Docker).
+2. No shell:
+
+```bash
+npm install
+npm run dev
+```
+
+3. Abrir `http://localhost:3000`.
+
+Se o remote não carregar, ver mensagem do `RemoteErrorBoundary` e confirmar `http://localhost:4001/assets/remoteEntry.js` no browser.
 
 ---
 
@@ -28,25 +51,26 @@ No Docker, `plus-infra` passa `VITE_MS_AUTH_BROWSER` como build-arg (ver `docker
 
 | Comando | Descrição |
 |---|---|
-| `npm run dev` | Inicia em modo desenvolvimento na porta 3000 |
-| `npm run build` | Gera o bundle em `dist/` |
-| `npm run preview` | Serve o build na porta 3000 |
-
----
-
-## Desenvolvimento local (sem Docker)
-
-```bash
-npm install
-npm run dev
-```
-
-Acesse: http://localhost:3000
-
-Garante que o `plus-ms-auth` está acessível na URL do build (`VITE_MS_AUTH_URL`, por omissão `http://localhost:3001`). Porque o shell **não** usa o API Gateway no browser em local, vê a nota ao **item 20** no `CHECKLIST.md` e a secção **Gateway vs MS** no README do `plus-mfe-auth`.
+| `npm run dev` | Dev na porta 3000 |
+| `npm run build` | Build com federation |
+| `npm run preview` | Preview do `dist` |
+| `npm run test` | Vitest (watch) |
+| `npm run test:run` | Vitest uma vez (CI) |
 
 ---
 
 ## Executando com a stack completa
 
-Este serviço é orquestrado pelo `plus-infra`. Consulte o README do `plus-infra`.
+`plus-infra`: o `plus-shell` depende do `plus-mfe-auth` saudável e recebe `MFE_AUTH_URL` no build. Ver [README do plus-infra](../plus-infra/README.md).
+
+Fluxo rápido: `cd ../plus-infra && make setup` → abrir `http://localhost:3000` → login chama o `plus-ms-auth` na base configurada no build do MFE (por omissão no Docker, `http://localhost:3001` via `VITE_MS_AUTH_BROWSER`).
+
+---
+
+## Module Federation (resumo)
+
+| Host | Remote |
+|------|--------|
+| `shell` | `mfe_auth` → `MFE_AUTH_URL` (ficheiro `remoteEntry.js`) |
+| Expõe | `LoginPage` lazy: `import("mfe_auth/LoginPage")` |
+| Shared | `react`, `react-dom` |

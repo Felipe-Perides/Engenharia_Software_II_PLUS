@@ -7,6 +7,18 @@ Plus. É a primeira tela com a qual o usuário interage e controla o acesso aos
 demais módulos. O componente `LoginPage` é consumido pelo `plus-shell` via
 Module Federation, mas também roda standalone em desenvolvimento isolado.
 
+## Integração com o `plus-shell` (Module Federation)
+
+- O nome do evento de sucesso é a constante **`PLUS_AUTH_LOGIN_SUCCESS_EVENT`**
+  (`"plus-auth-login-success"`) em `src/shellAuthEvents.ts`, mantida igual à
+  constante em `plus-shell/src/shellAuthEvents.js`.
+- Após login bem-sucedido, o `LoginPage` chama **`window.dispatchEvent`** com
+  esse nome **sempre**, para o host poder sincronizar sessão mesmo quando a
+  prop **`onLogin`** não atravessa o remote.
+- O **shell** envolve o remote com **`Suspense`**, **`React.lazy`** e um
+  **`RemoteErrorBoundary`** que orienta o utilizador se o
+  `remoteEntry.js` estiver inacessível.
+
 ## Fluxo de login
 
 ### 1. Entrada na tela
@@ -62,13 +74,22 @@ Validação passando, o componente:
 
 Backend retornando `200 OK` com `{ token, refresh, user? }`:
 
-1. Os tokens são salvos no `localStorage` (`plus.auth.token` e
-   `plus.auth.refresh`) via `tokenStorage.setTokens()`
-2. O callback `onLogin(data)` é chamado, repassando a resposta para o Shell
-3. O Shell redireciona o usuário para a tela inicial autenticada
+1. Dentro de `authClient.login`, os tokens são gravados no `localStorage`
+   (`plus.auth.token` e `plus.auth.refresh`) via `tokenStorage.setTokens()`
+   **antes** de a função devolver o objecto ao `LoginPage`.
+2. O `LoginPage` dispara um **`CustomEvent`** em `window` com o nome
+   **`plus-auth-login-success`** e `detail` igual à resposta do login. O
+   **`plus-shell` escuta este evento** e aplica a sessão (`localStorage` +
+   estado React), porque a prop `onLogin` **pode não propagar de forma fiável**
+   através do limite do Module Federation.
+3. Em seguida chama-se `onLogin?.(data)` quando o host passou essa prop
+   (caminho complementar, útil quando a prop funciona).
+4. O Shell **não usa React Router** nesta versão: alterna `useState` de
+   “não autenticado” para “autenticado” e renderiza um **dashboard** simples —
+   não há `navigate()` nem redirecionamento HTTP.
 
-O `LoginPage` não controla o redirecionamento — essa responsabilidade fica
-com o Shell.
+O `LoginPage` **não** decide qual página mostrar no host; só notifica o
+sucesso (evento + callback) e deixa o Shell trocar a árvore de componentes.
 
 ### 6. Resposta de erro
 
@@ -98,11 +119,16 @@ O design é construído sobre **Material UI v5** (`@mui/material`) com
 
 ### Tema
 
-Em modo standalone, um tema claro padrão é aplicado via
-`createTheme({ palette: { mode: "light" } })`. Quando consumido pelo Shell, o
-tema do host é herdado automaticamente, já que `@mui/material`,
-`@emotion/react` e `@emotion/styled` são declarados como `shared` com
-`singleton: true` no Module Federation.
+Em modo **standalone**, `main.tsx` aplica `ThemeProvider` + `CssBaseline` com
+`createTheme({ palette: { mode: "light" } })`.
+
+Quando o `LoginPage` é carregado pelo **`plus-shell`**, o entrypoint `main.tsx`
+do MFE **não** corre: só o chunk do remote é executado. O **shell não inclui
+MUI** nas dependências — apenas **React** e **ReactDOM**. No Federation
+(`vite.config.ts`), `shared` é o array **`["react", "react-dom"]`**; **MUI e
+Emotion não estão em `shared`** e permanecem no bundle do remote. O aspeto
+visual usa então o **tema por defeito** do MUI embutido no remote (não há
+`ThemeProvider` do host a envolver o login).
 
 ## Acessibilidade
 
@@ -126,7 +152,7 @@ tema do host é herdado automaticamente, já que `@mui/material`,
 | Validação falhou | Helper text vermelho abaixo do(s) campo(s) inválido(s) |
 | Submetendo | Campos desabilitados, botão com spinner |
 | Erro do backend | Alert vermelho acima do botão, campos reabilitados |
-| Sucesso | Controle passa para o Shell (a tela some) |
+| Sucesso | Shell deixa de renderizar o login e mostra o dashboard (estado + evento) |
 
 ## Interação do usuário final
 
@@ -138,7 +164,7 @@ tema do host é herdado automaticamente, já que `@mui/material`,
 6. `Enter` ou clique em **Entrar**
 7. Aguarda menos de um segundo o spinner; se algo der errado, lê o alert
    vermelho e tenta novamente
-8. No sucesso, o navegador transiciona para a tela inicial autenticada
+8. No sucesso, o Shell (origem `:3000`) actualiza o estado e mostra o dashboard; os tokens já estão no `localStorage` dessa origem
 
 Esta versão não traz "esqueci minha senha" nem "cadastre-se" — esses fluxos
 serão entregues pelos MFEs `plus-mfe-password-reset` e `plus-mfe-signup` em

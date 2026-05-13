@@ -173,6 +173,8 @@ Este checklist foi preparado para acompanhar a entrega do trabalho de T1, focand
 
 ## Etapa 5: ADR e Documentação Final
 
+> **Entrega:** ADR na raiz do monorepo: [`ADR-0001-arquitetura-stack-plus.md`](./ADR-0001-arquitetura-stack-plus.md). OpenAPI/Swagger consolidado no README do `plus-ms-auth`. Manual de UI em [`plus-mfe-auth/docs/UI_MANUAL.md`](./plus-mfe-auth/docs/UI_MANUAL.md). READMEs de `plus-infra`, `plus-ms-auth`, `plus-mfe-auth` e `plus-shell` revistos para o fluxo actual (Federation, `MFE_AUTH_URL`, browser vs Gateway).
+
 31. Criar documento ADR no diretório principal do repositório:
     - Registrar decisões arquiteturais
     - Justificar escolha de Node.js, TypeScript, MUI, JWT, Terraform, Gateway
@@ -189,6 +191,8 @@ Este checklist foi preparado para acompanhar a entrega do trabalho de T1, focand
 
 
 ## Etapa 6: Validação Final
+
+> **Validação local (2026-05-13):** `docker compose ps` — ministack (healthy), plus-ms-auth, plus-mfe-auth (healthy), plus-shell em execução. HTTP 200 em `http://localhost:3000/`, `http://localhost:4001/assets/remoteEntry.js`, `http://localhost:3001/docs`. **35** — `POST /auth/login` e `GET /auth/me` (Bearer) no MS: HTTP 200 com `examples/login.json`. **36** — mesmo fluxo via `terraform output -raw gateway_url`: HTTP 200. **37** — integração shell+MFE verificada (serviços e assets); o bundle do MFE em Docker contém `BASE_URL "http://localhost:3001"` (override `VITE_MS_AUTH_BROWSER`), não o Gateway — alinhado à nota do item 20; login no browser usa o MS directo. **38** — workflows `.github/workflows/ci.yml` revistos; comandos equivalentes corridos localmente: `plus-ms-auth` `npm test` (15 testes), `plus-mfe-auth` `npm run type-check` + `npm run test:run` (10) + `npm run build`, `plus-shell` `npm run test:run` + `npm run build`. **39** — `docker compose build plus-ms-auth plus-mfe-auth plus-shell` concluído com sucesso. **40** — ADR presente; auth/RBAC/Swagger; MFE React+TS+MUI+Federation; documentação nos READMEs + `UI_MANUAL.md`. *GitHub Actions em `github.com` não foram disparados nesta sessão.*
 
 34. Subir stack completa com `plus-infra` e validar funcionamento geral.
     - Diretório afetado: `plus-infra`

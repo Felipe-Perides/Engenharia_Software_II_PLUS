@@ -5,6 +5,8 @@ RUN npm ci
 COPY . .
 ARG VITE_MS_AUTH_URL=http://localhost:3001
 ENV VITE_MS_AUTH_URL=$VITE_MS_AUTH_URL
+ARG MFE_AUTH_URL=http://localhost:4001/assets/remoteEntry.js
+ENV MFE_AUTH_URL=$MFE_AUTH_URL
 RUN npm run build
 
 FROM node:20-bookworm-slim

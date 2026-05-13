@@ -5,6 +5,8 @@ Microfrontend de autenticação do projeto **Plus**.
 Expõe o componente `LoginPage` via **Module Federation** para ser consumido
 pelo `plus-shell`. Construído com React + TypeScript + Vite + Material UI.
 
+Contexto arquitectural e limitações locais (CORS no Gateway, evento `plus-auth-login-success`): [**ADR-0001**](../ADR-0001-arquitetura-stack-plus.md).
+
 ---
 
 ## Tecnologias
@@ -26,9 +28,9 @@ Este microfrontend atua como **remote**:
 | Propriedade | Valor |
 |---|---|
 | Nome | `mfe_auth` |
-| Entry point | `http://localhost:4001/remoteEntry.js` |
+| Entry point | `http://localhost:4001/assets/remoteEntry.js` |
 | Expõe | `./LoginPage` → `src/pages/LoginPage.tsx` |
-| Shared (singleton) | `react`, `react-dom` (MUI fica no bundle do remote) |
+| Shared | `react`, `react-dom` apenas (MUI e Emotion ficam no bundle do remote) |
 
 ### Consumo no Shell
 
@@ -52,7 +54,12 @@ E no código React:
 const LoginPage = React.lazy(() => import("mfe_auth/LoginPage"));
 
 <Suspense fallback={<Loading />}>
-  <LoginPage onLogin={(data) => /* salvar sessão e redirecionar */} />
+  <LoginPage
+    onLogin={(data) => {
+      // Caminho preferencial quando a prop atravessa o remote.
+      // O MFE também emite `plus-auth-login-success` em `window` após login.
+    }}
+  />
 </Suspense>
 ```
 
@@ -108,7 +115,7 @@ npm run test:run       # one-shot
 npm run test:coverage  # com cobertura HTML em coverage/
 ```
 
-Os testes vivem em `src/**/__tests__/*.test.tsx` e mockam o `authClient`
+Os testes vivem em `src/**/__testes__/*.test.tsx` e mockam o `authClient`
 para isolar a UI das chamadas de rede.
 
 ---
@@ -156,7 +163,7 @@ plus-mfe-auth/
 │   ├── api/authClient.ts
 │   ├── pages/
 │   │   ├── LoginPage.tsx
-│   │   └── tests/LoginPage.test.tsx
+│   │   └── __testes__/LoginPage.test.tsx
 │   ├── test/setup.ts
 │   ├── types/auth.ts
 │   ├── utils/tokenStorage.ts
@@ -174,9 +181,7 @@ plus-mfe-auth/
 
 ## Executando com a stack completa
 
-Este serviço é orquestrado pelo `plus-infra`. Consulte o
-[README do plus-infra](https://github.com/pucrs-sweii-2026-1-30/plus-infra)
-para subir LocalStack, MS de auth, Shell e MFEs juntos.
+Este serviço é orquestrado pelo `plus-infra`. Consulte o [README do plus-infra](../plus-infra/README.md).
 
 ## Documentação relacionada
 
