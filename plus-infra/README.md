@@ -65,7 +65,7 @@ O `make setup`:
 5. Faz **rebuild** das imagens `plus-mfe-auth` e `plus-shell` com as variáveis de build (ver `docker-compose.yml`)
 6. Sobe todos os demais serviços (`docker compose up -d`)
 
-> **Browser vs Gateway (local):** O `.env` mantém `VITE_MS_AUTH_URL` com o URL do **API Gateway** (Terraform). O `docker-compose` passa **`VITE_MS_AUTH_BROWSER`** ao build do MFE e do shell (por omissão `http://localhost:3001`) para o *fetch* no browser ir **directo** ao `plus-ms-auth` e evitar CORS frágil no `4566` em LocalStack. Explicação completa: `CHECKLIST.md` (nota ao item 20) e README do `plus-mfe-auth`. O build do **plus-shell** usa ainda **`MFE_AUTH_URL`** (URL absoluto de `.../assets/remoteEntry.js`); o serviço **depende** do `plus-mfe-auth` saudável antes de subir.
+> **Browser vs Gateway (local):** O `.env` mantém `VITE_MS_AUTH_URL` com o URL do **API Gateway** (Terraform). O `docker-compose` passa **`VITE_MS_AUTH_BROWSER`** ao build do MFE e do shell (por omissão `http://localhost:3001`) para o *fetch* no browser ir **direto** ao `plus-ms-auth` e evitar CORS frágil no `4566` em LocalStack. Explicação completa: `CHECKLIST.md` (nota ao item 20) e README do `plus-mfe-auth`. O build do **plus-shell** usa ainda **`MFE_AUTH_URL`** (URL absoluto de `.../assets/remoteEntry.js`); o serviço **depende** do `plus-mfe-auth` saudável antes de subir.
 
 > **`docker compose up` sozinho** não corre Terraform: o Ministack tem de estar no ar e o state tem de existir (`make tf-apply` ou um `make setup` completo). Sem isso, faltam recursos no LocalStack e `terraform/rds.env` pode estar errado. Para o URL do Gateway no `.env` sem `make setup`, use `make sync-vite-gateway` + `docker compose build plus-mfe-auth plus-shell`.
 
