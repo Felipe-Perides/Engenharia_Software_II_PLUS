@@ -10,14 +10,14 @@
 
 ## 1. Contexto e problema de negócio
 
-O sistema **Plus** é um gestor de stock de roupa. A primeira fatia entregue concentra-se em **identidade**: login, tokens, perfil do utilizador e base para autorização por papéis. A solução tem de:
+O sistema **Plus** é um gestor de stock de roupa. A primeira fatia entregue concentra-se em **identidade**: login, tokens, perfil do utilizador e base para autorização por papéis. A solução tem que:
 
 - Ser demonstrável **localmente** com Docker Compose.
-- Reflectir uma arquitetura de **microsserviço** + **API Gateway** (padrão cloud).
-- Expor a autenticação também como **microfrontend** consumível por um **shell** (host), alinhado ao requisito académico de MFE com Module Federation.
+- Refletir uma arquitetura de **microsserviço** + **API Gateway** (padrão cloud).
+- Expor a autenticação também como **microfrontend** consumível por um **shell** (host).
 - Manter **documentação** (Swagger no MS, manual de UI no MFE) e **CI** (build + testes) por repositório.
 
-Este ADR regista **decisões**, **justificações**, **trade-offs** e **incidentes** resolvidos durante a implementação, com base no código e na conversa de implementação do projecto.
+Este ADR regista **decisões**, **justificativas**, **trade-offs** e **incidentes** resolvidos durante a implementação, com base no código e na conversa de implementação do projeto.
 
 ---
 
@@ -25,7 +25,7 @@ Este ADR regista **decisões**, **justificações**, **trade-offs** e **incident
 
 ### 2.1 Repositórios e layout
 
-O trabalho assume **quatro repositórios irmãos** no mesmo directório (monorepo de pastas, sem npm workspaces obrigatório na raiz):
+O trabalho assume **quatro repositórios irmãos** no mesmo diretório (monorepo de pastas, sem npm workspaces obrigatório na raiz):
 
 | Pasta | Papel |
 |--------|--------|
@@ -34,7 +34,7 @@ O trabalho assume **quatro repositórios irmãos** no mesmo directório (monorep
 | `plus-mfe-auth` | Remote Module Federation: expõe `LoginPage` (React + TS + MUI + Vite). |
 | `plus-shell` | Host Module Federation: carrega o remote `mfe_auth`, gere sessão na origem `:3000`. |
 
-A raiz do monorepo (ex.: `eng-cursor-novo/`) pode conter apenas `package.json` / `CHECKLIST.md` / este ADR; os serviços vivem nas subpastas.
+A raiz do monorepo pode conter apenas `package.json` / `CHECKLIST.md` / este ADR; os serviços vivem nas subpastas.
 
 ### 2.2 Fluxo de dados (alto nível)
 
@@ -48,7 +48,7 @@ Browser (:3000 shell)
   → localStorage (tokens) + CustomEvent + callback onLogin → shell mostra dashboard
 ```
 
-Em **paralelo**, o Terraform provisiona **API Gateway** no Ministack apontando para `http://plus-ms-auth:3001/...`, permitindo chamadas **server-side** ou **curl** pelo URL do Gateway. O caminho **browser → Gateway** em local apresentou fragilidade de **CORS** (secção 8).
+Em **paralelo**, o Terraform provisiona **API Gateway** no Ministack apontando para `http://plus-ms-auth:3001/...`, permitindo chamadas **server-side** ou **curl** pelo URL do Gateway. O caminho **browser → Gateway** em local apresentou fragilidade de **CORS** (seção 8).
 
 ### 2.3 Portas e URLs locais (padrão)
 
@@ -58,12 +58,12 @@ Em **paralelo**, o Terraform provisiona **API Gateway** no Ministack apontando p
 | `plus-ms-auth` | `http://localhost:3001` |
 | `plus-mfe-auth` | `http://localhost:4001` (`remoteEntry.js` em `/assets/remoteEntry.js`) |
 | Ministack | `http://localhost:4566` |
-| API Gateway | `http://localhost:4566/restapis/<id>/v1/_user_request_` (prefixo exacto depende do output Terraform) |
+| API Gateway | `http://localhost:4566/restapis/<id>/v1/_user_request_` (prefixo exato depende do output Terraform) |
 
 Variáveis relevantes:
 
-- **`VITE_MS_AUTH_URL`**: injectada no **build** do Vite (MFE e, quando usada, shell); base do `fetch` para `/auth/*`.
-- **`VITE_MS_AUTH_BROWSER`**: usada no `docker-compose` do `plus-infra` como **override** do URL servido ao browser no build (por omissão `http://localhost:3001`) — ver secção 8.
+- **`VITE_MS_AUTH_URL`**: injetada no **build** do Vite (MFE e, quando usada, shell); base do `fetch` para `/auth/*`.
+- **`VITE_MS_AUTH_BROWSER`**: usada no `docker-compose` do `plus-infra` como **override** do URL servido ao browser no build (por omissão `http://localhost:3001`) — ver seção 8.
 - **`MFE_AUTH_URL`**: URL absoluto do ficheiro `remoteEntry.js` no **build** do shell (por omissão `http://localhost:4001/assets/remoteEntry.js`).
 - **`JWT_SECRET`**, credenciais **`DB_*`**, **`AWS_*`**, **`AWS_ENDPOINT`**: MS e, onde aplicável, MFE/shell para futuras integrações AWS SDK.
 
@@ -188,20 +188,20 @@ Roles: **`ADMIN`**, **`STAFF`**, **`MANAGER`**. A `role` é persistida em coluna
 
 ---
 
-## 8. Decisão crítica: browser directo ao MS vs API Gateway (local)
+## 8. Decisão crítica: browser direto ao MS vs API Gateway (local)
 
 ### 8.1 Problema observado
 
-Com o browser em `http://localhost:3000` ou `http://localhost:4001`, chamadas `fetch` ao API Gateway em **`http://localhost:4566/...`** falharam com **CORS** ou **Failed to fetch**, apesar do microsserviço responder correctamente quando chamado directamente.
+Com o browser em `http://localhost:3000` ou `http://localhost:4001`, chamadas `fetch` ao API Gateway em **`http://localhost:4566/...`** falharam com **CORS** ou **Failed to fetch**, apesar do microsserviço responder corretamente quando chamado diretamente.
 
 ### 8.2 Decisão pragmática
 
-- Manter **`VITE_MS_AUTH_URL`** no `.env` com o URL do Gateway (Terraform) — **referência arquitectural** e útil para **`curl`**, Postman, ou clientes sem política CORS de browser.
+- Manter **`VITE_MS_AUTH_URL`** no `.env` com o URL do Gateway (Terraform) — **referência arquitetural** e útil para **`curl`**, Postman, ou clientes sem política CORS de browser.
 - No **build Docker** do MFE e do shell, passar por omissão **`VITE_MS_AUTH_BROWSER=http://localhost:3001`** para que o bundle use o **MS directo**, onde o **CORS** está controlado.
 
 ### 8.3 Consequência
 
-- O requisito “comunicação via Gateway no browser” fica **documentado como limitação local**; a **arquitectura** mantém o Gateway; a **experiência** local prioriza estabilidade.
+- O requisito “comunicação via Gateway no browser” fica **documentado como limitação local**; a **arquitetura** mantém o Gateway; a **experiência** local prioriza estabilidade.
 - Mitigações futuras: **proxy reverso** na mesma origem que o shell, CORS customizado no emulador, ou API Gateway real na AWS.
 
 Este ponto está espelhado no **`CHECKLIST.md`** (nota ao item 20) e nos READMEs do `plus-infra` e `plus-mfe-auth`.
@@ -238,27 +238,27 @@ Este ponto está espelhado no **`CHECKLIST.md`** (nota ao item 20) e nos READMEs
 
 ### 10.1 Escolha
 
-- **Vite 5** (não Vite 8 com Rolldown) no MFE e no shell, com **`@originjs/vite-plugin-federation`**.
+- **Vite 5** no MFE e no shell, com **`@originjs/vite-plugin-federation`**.
 - Remote **`mfe_auth`**, ficheiro **`remoteEntry.js`**, expõe **`./LoginPage`**.
 - **`build.target: "esnext"`** e **`minify: false`** no MFE (e padrão semelhante no shell) para **reduzir falhas** de resolução de módulos com Federation.
 
 ### 10.2 Justificativa
 
 - **`@module-federation/vite`** ou stacks desalinhadas geraram **incompatibilidade** (shell ficava em “Carregando…” / remote não resolvido).
-- **Vite 8 + Rolldown** falhou o build com o plugin Federation + MUI no experimento do projecto.
+- **Vite 8 + Rolldown** falhou o build com o plugin Federation + MUI no experimento do projeto.
 
 ### 10.3 Trade-offs
 
 | Prós | Contras |
 |------|---------|
 | Interop host/remote estável | Versão do Vite “travada” abaixo da última major |
-| `remoteEntry.js` servido em **`/assets/`** (padrão Vite build) | Healthchecks e docs têm de referenciar o path correcto |
+| `remoteEntry.js` servido em **`/assets/`** (padrão Vite build) | Healthchecks e docs têm que referenciar o path correto |
 
 ### 10.4 Integração shell ↔ remote
 
 - **`React.lazy(() => import("mfe_auth/LoginPage"))`** + **`Suspense`**.
 - **`RemoteErrorBoundary`** (class component) captura falhas de load/execução do remote e mostra mensagem com **`MFE_AUTH_URL`** e URL do `remoteEntry.js`.
-- **`plus-shell` sem React Router** na versão actual: o estado **`authed`** com **`useState`** alterna entre login e **dashboard** simples (evita problemas de **`useNavigate`** após async e duplicação de rotas).
+- **`plus-shell` sem React Router** na versão atual: o estado **`authed`** com **`useState`** alterna entre login e **dashboard** simples (evita problemas de **`useNavigate`** após async e duplicação de rotas).
 - **Sincronização de sessão:** o MFE, após `login()` bem-sucedido, faz **`window.dispatchEvent(new CustomEvent("plus-auth-login-success", { detail: data }))`**. O shell **escuta** o mesmo evento (constante partilhada por convenção entre `shellAuthEvents.ts` / `shellAuthEvents.js`) **além** da prop **`onLogin`**, porque **props através do boundary do remote nem sempre propagam** de forma fiável no Federation.
 - **`authClient.login`** persiste tokens com **`tokenStorage`** (`plus.auth.token` / `plus.auth.refresh`); o shell usa as **mesmas chaves** ao processar o evento/callback.
 
@@ -273,7 +273,7 @@ Imagem final serve ficheiros estáticos com **Nginx Alpine**.
 ### 11.2 Detalhes importantes
 
 - **CORS aberto** (ou permissivo) para o browser do shell poder obter **`remoteEntry.js`** de outra origem.
-- **Cache desactivado** (ou enfraquecido) para **`remoteEntry.js`** durante desenvolvimento iterativo para evitar shell a carregar entrada antiga.
+- **Cache desativado** (ou enfraquecido) para **`remoteEntry.js`** durante desenvolvimento iterativo para evitar shell a carregar entrada antiga.
 - **Healthcheck** do Compose: `wget` a **`http://127.0.0.1:4001/assets/remoteEntry.js`** — alinhado ao path real do build Vite.
 - **Regra aprendida:** **`add_header` dentro de `if` no `server`** do Nginx causou falha de arranque nalgumas iterações; a configuração final evita anti-padrões documentados da comunidade Nginx.
 
@@ -284,8 +284,8 @@ Imagem final serve ficheiros estáticos com **Nginx Alpine**.
 ### 12.1 Escolha
 
 - **`swagger-jsdoc`** lê anotações OpenAPI 3 em **`src/routes/*.ts`** (e espelho em **`dist/routes/*.js`** após build).
-- **`swagger-ui-express`** em **`/docs`**; **`GET /`** redirecciona para **`/docs`**.
-- Montagem com **spread** de `swaggerUi.serve` (array de middlewares) — necessário para o Express encaminhar correctamente.
+- **`swagger-ui-express`** em **`/docs`**; **`GET /`** redireciona para **`/docs`**.
+- Montagem com **spread** de `swaggerUi.serve` (array de middlewares) — necessário para o Express encaminhar corretamente.
 
 ### 12.2 Justificativa
 
@@ -303,7 +303,7 @@ Imagem final serve ficheiros estáticos com **Nginx Alpine**.
 
 ### 13.2 MFE (`plus-mfe-auth`)
 
-- **Vitest** + **Testing Library**; testes em **`src/pages/__testes__/LoginPage.test.tsx`** (nome da pasta reflecte o repo actual).
+- **Vitest** + **Testing Library**; testes em **`src/pages/__testes__/LoginPage.test.tsx`** (nome da pasta reflete o repo atual).
 - CI: type-check, testes, build Vite, build imagem.
 
 ### 13.3 Shell (`plus-shell`)
@@ -327,7 +327,7 @@ Imagem final serve ficheiros estáticos com **Nginx Alpine**.
 
 1. **JWT em `localStorage`** — vulnerável a XSS; mitigação futura: cookies `httpOnly` + CSRF, CSP estrita.
 2. **Segredo único** `JWT_SECRET` — rotação e gestão de segredos em produção via vault/SSM.
-3. **Gateway vs browser (local)** — já descrito; não reflecte limitação da AWS real.
+3. **Gateway vs browser (local)** — já descrito; não reflete limitação da AWS real.
 4. **Federation** — versões de React têm de permanecer alinhadas entre host e remote.
 5. **Credenciais de demo** em README — apenas para ambiente local.
 
@@ -347,7 +347,6 @@ Imagem final serve ficheiros estáticos com **Nginx Alpine**.
 
 ## 17. Referências internas
 
-- **`CHECKLIST.md`** — itens cronológicos e nota item 20.
 - **`plus-infra/README.md`** — comandos `make`, portas, fluxo `setup`.
 - **`plus-ms-auth/README.md`** — endpoints, Swagger, curl Windows, Gateway.
 - **`plus-mfe-auth/README.md`** — variáveis, Federation, Docker.
@@ -358,7 +357,7 @@ Imagem final serve ficheiros estáticos com **Nginx Alpine**.
 
 ## 18. Conclusão
 
-A stack adopta **Node.js + TypeScript + Express + PostgreSQL + JWT** para auth, **Terraform + Ministack** para infra local incluindo **API Gateway**, **React + TypeScript + Vite 5 + MUI** para o MFE, e **Module Federation (@originjs)** entre **shell** e **remote**, com um desvio **documentado** no tráfego browser→auth em ambiente local (**MS directo** com CORS explícito) para preservar UX estável sem negar o papel do Gateway na arquitectura alvo.
+A stack adota **Node.js + TypeScript + Express + PostgreSQL + JWT** para auth, **Terraform + Ministack** para infra local incluindo **API Gateway**, **React + TypeScript + Vite 5 + MUI** para o MFE, e **Module Federation (@originjs)** entre **shell** e **remote**, com um desvio **documentado** no tráfego browser→auth em ambiente local (**MS directo** com CORS explícito) para preservar UX estável sem negar o papel do Gateway na arquitetura alvo.
 
 ---
 
@@ -381,6 +380,6 @@ O `Dockerfile` de produção executa **`node dist/scripts/init-db.js && node dis
 
 ---
 
-## Apêndice D — Raiz do monorepo (`eng-cursor-novo`)
+## Apêndice D — Raiz do monorepo
 
 Além dos quatro repositórios, a pasta pode conter `CHECKLIST.md`, `package.json` / `package-lock.json` (se existirem) e este **ADR**. Os clones Git independentes por repositório devem colocar o ADR numa localização acordada pela equipa (ex.: wiki ou repo `plus-docs`); neste monorepo de pastas o ADR vive na **raiz comum**.
