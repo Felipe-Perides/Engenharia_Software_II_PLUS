@@ -133,3 +133,670 @@ Build da imagem Docker
 Diretório afetado: plus-ms-auth
 Tendo em vista esta checklist, separa cada etapa individualmente e me explica passo a passo de forma detalhada e didatica como eu posso implementar cada um destes passos. Antes de iniciar qualquer passo, me pergunte se é preciso que eu forneça mais alguma informação para executar esta tarefa.
 Me justifique o porque de cada decisão tomada para que eu possa fazer o controle do que está sendo feito.
+
+Você mencionou que tem o trabalho aberto — preciso saber o que já existe nos diretórios plus-ms-auth e plus-mfe-auth antes de orientar qualquer coisa, para não te dar instruções conflitantes com o que já foi feito.
+Me mostra o conteúdo de:
+
+O que está dentro de plus-ms-auth/src/ (estrutura de pastas e arquivos)
+O package.json do plus-ms-auth (se já existir)
+O Dockerfile do plus-ms-auth (se já existir)
+Enquanto isso, deixa eu te dar uma visão geral de tudo que faremos para o plus-ms-auth, na ordem da checklist, para você já ir entendendo a jornada:
+A lógica de execução vai ser assim:
+1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
+Cada etapa depende da anterior. O que faremos em cada uma:
+Etapa 1 — Inicializar o projeto Node + TypeScript + Express. Criar o package.json, instalar as dependências base, configurar o tsconfig.json e a estrutura de pastas (src/routes, src/middlewares, src/db, etc.).
+Etapa 2 — Instalar dependências. express, cors, jsonwebtoken, bcryptjs, pg, dotenv + as tipagens @types/* + typescript, ts-node-dev, vitest.
+Etapa 3 — Conexão com PostgreSQL. Criar um arquivo src/db/pool.ts com um Pool do pg lendo as variáveis de ambiente do .env.
+Etapa 4 — CORS. Configurar o middleware de CORS no src/app.ts para aceitar localhost:3000 e localhost:4001.
+Etapa 5 — Endpoints REST. Implementar os 4 endpoints (/auth/login, /auth/refresh, /auth/logout, /auth/me) com a lógica de JWT e banco.
+Etapa 6 — RBAC. Adicionar o campo role no payload do JWT e criar um middleware requireRole para proteger rotas por perfil (ADMIN, STAFF, MANAGER).
+Etapa 7 — Testes com Vitest. Escrever testes unitários para cada endpoint, mockando o banco e o JWT.
+Etapa 8 — Swagger/OpenAPI. Instalar swagger-ui-express + swagger-jsdoc e documentar todos os endpoints com exemplos.
+Etapa 9 — Dockerfile multi-stage. Stage 1: compilar TypeScript. Stage 2: imagem enxuta com só o JS compilado, expondo a porta 3001.
+Etapa 10 — README. Atualizar com instruções de uso local e via plus-infra.
+Etapa 11 — GitHub Actions. Pipeline com jobs de install → test → build Docker → (opcional) push de imagem.
+Passo 1 — Configurar TypeScript e reorganizar o projeto
+1.1 — Instalar as dependências
+Abre o terminal, entra na pasta plus-ms-auth e roda:
+bashcd plus-ms-auth
+
+npm install --save-dev typescript ts-node-dev @types/express @types/node @types/jsonwebtoken @types/bcryptjs @types/cors @types/pg @types/swagger-jsdoc @types/swagger-ui-express vitest @vitest/coverage-v8
+
+npm install cors swagger-jsdoc swagger-ui-express
+Por que cada um:
+
+typescript + ts-node-dev → compila e roda TS em dev com hot reload
+@types/* → tipagens para as libs que já existem
+cors → middleware de CORS (faltava)
+swagger-jsdoc + swagger-ui-express → documentação automática
+vitest → framework de testes (mais moderno que Jest, integra bem com TS)
+
+
+1.2 — Criar o tsconfig.json
+Na raiz do plus-ms-auth, cria o arquivo tsconfig.json com esse conteúdo:
+json{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests"]
+}
+O que cada opção faz:
+
+outDir: ./dist → o TypeScript compilado vai pra pasta dist/
+rootDir: ./src → o código fonte fica em src/
+strict: true → ativa todas as verificações rígidas de tipo (essencial)
+esModuleInterop: true → permite import express from 'express' sem gambiarra
+
+
+1.3 — Atualizar o package.json
+Substitui o conteúdo do package.json por este:
+json{
+  "name": "plus-ms-auth",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.11.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.6",
+    "@vitest/coverage-v8": "^1.2.0",
+    "nodemon": "^3.0.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
+O que mudou nos scripts:
+
+dev → agora usa ts-node-dev em vez de nodemon, roda TypeScript direto
+build → compila TS para JS na pasta dist/
+start → roda o JS compilado (usado em produção/Docker)
+test / test:watch / test:coverage → Vitest
+
+
+Passo 2 — Criar os arquivos TypeScript
+Agora vamos criar cada arquivo. Siga a ordem que eu vou explicar o motivo de cada um.
+
+2.1 — src/db/pool.ts — Conexão com o banco
+Cria a pasta src/db/ e dentro dela o arquivo pool.ts:
+typescriptimport { Pool } from "pg";
+
+export const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
+Por que separar isso? Para que qualquer arquivo que precise do banco importe daqui, e nos testes possamos mockar este módulo inteiro sem tocar nos outros arquivos.
+
+2.2 — src/middlewares/auth.ts — Verificação de JWT
+Cria a pasta src/middlewares/ e o arquivo auth.ts:
+typescriptimport { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+
+export interface AuthPayload {
+  sub: string;
+  email: string;
+  role: "ADMIN" | "STAFF" | "MANAGER";
+}
+
+// Extende o tipo Request do Express para incluir o usuário autenticado
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthPayload;
+    }
+  }
+}
+
+export function authenticate(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization;
+
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Token não fornecido" });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(
+      auth.slice(7),
+      process.env.JWT_SECRET || "dev-secret"
+    ) as AuthPayload;
+
+    req.user = payload;
+    next();
+  } catch {
+    res.status(401).json({ error: "Token inválido ou expirado" });
+  }
+}
+O que é o declare global? O Express não sabe que vamos colocar um campo user no Request. Esse bloco ensina o TypeScript que o Request pode ter esse campo, sem precisar usar any em nenhum lugar.
+
+2.3 — src/middlewares/requireRole.ts — RBAC
+Ainda em src/middlewares/, cria o arquivo requireRole.ts:
+typescriptimport { Request, Response, NextFunction } from "express";
+import { AuthPayload } from "./auth";
+
+type Role = AuthPayload["role"];
+
+export function requireRole(...roles: Role[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: "Não autenticado" });
+      return;
+    }
+
+    if (!roles.includes(req.user.role)) {
+      res.status(403).json({ error: "Permissão insuficiente" });
+      return;
+    }
+
+    next();
+  };
+}
+Como vai funcionar na prática? Você usa assim em qualquer rota:
+typescriptrouter.delete("/users/:id", authenticate, requireRole("ADMIN"), deleteUser);
+Se o usuário não for ADMIN, recebe 403. Simples e reutilizável.
+
+2.4 — src/routes/auth.ts — Endpoints
+Cria a pasta src/routes/ e o arquivo auth.ts:
+typescriptimport { Router, Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { pool } from "../db/pool";
+import { authenticate, AuthPayload } from "../middlewares/auth";
+
+export const authRouter = Router();
+
+const JWT_SECRET = () => process.env.JWT_SECRET || "dev-secret";
+
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Autentica um usuário
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: admin@plus.com
+ *               password:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Tokens gerados com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 refresh:
+ *                   type: string
+ *       400:
+ *         description: Campos obrigatórios ausentes
+ *       401:
+ *         description: Credenciais inválidas
+ */
+authRouter.post("/login", async (req: Request, res: Response) => {
+  const { email, password } = req.body as { email?: string; password?: string };
+
+  if (!email || !password) {
+    res.status(400).json({ error: "email e password são obrigatórios" });
+    return;
+  }
+
+  const { rows } = await pool.query(
+    "SELECT * FROM users WHERE email = $1",
+    [email]
+  );
+  const user = rows[0];
+
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    res.status(401).json({ error: "Credenciais inválidas" });
+    return;
+  }
+
+  const payload: Omit<AuthPayload, "sub"> & { sub: string } = {
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+  };
+
+  const token = jwt.sign(payload, JWT_SECRET(), { expiresIn: "15m" });
+  const refresh = jwt.sign({ sub: user.id }, JWT_SECRET(), { expiresIn: "7d" });
+
+  res.json({ token, refresh });
+});
+
+/**
+ * @openapi
+ * /auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Renova o access token usando um refresh token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh]
+ *             properties:
+ *               refresh:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Novo access token gerado
+ *       400:
+ *         description: Refresh token não informado
+ *       401:
+ *         description: Refresh token inválido ou expirado
+ */
+authRouter.post("/refresh", (req: Request, res: Response) => {
+  const { refresh } = req.body as { refresh?: string };
+
+  if (!refresh) {
+    res.status(400).json({ error: "refresh token obrigatório" });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(refresh, JWT_SECRET()) as { sub: string };
+    const token = jwt.sign({ sub: payload.sub }, JWT_SECRET(), {
+      expiresIn: "15m",
+    });
+    res.json({ token });
+  } catch {
+    res.status(401).json({ error: "Refresh token inválido ou expirado" });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Encerra a sessão do usuário
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       204:
+ *         description: Logout realizado com sucesso
+ */
+authRouter.post("/logout", authenticate, (_req: Request, res: Response) => {
+  // Stateless: em produção, adicionar o refresh token a uma blocklist no banco
+  res.status(204).send();
+});
+
+/**
+ * @openapi
+ * /auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Retorna os dados do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dados do usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                   enum: [ADMIN, STAFF, MANAGER]
+ *       401:
+ *         description: Token não fornecido ou inválido
+ */
+authRouter.get("/me", authenticate, (req: Request, res: Response) => {
+  const { sub, email, role } = req.user!;
+  res.json({ id: sub, email, role });
+});
+Os comentários @openapi acima de cada rota são lidos pelo swagger-jsdoc para gerar a documentação automaticamente.
+
+2.5 — src/swagger/config.ts — Swagger
+Cria a pasta src/swagger/ e o arquivo config.ts:
+typescriptimport swaggerJsdoc from "swagger-jsdoc";
+
+const options: swaggerJsdoc.Options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Plus MS Auth API",
+      version: "1.0.0",
+      description: "Microsserviço de autenticação do projeto Plus",
+    },
+    servers: [{ url: "http://localhost:3001" }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+  },
+  apis: ["./src/routes/*.ts"],
+};
+
+export const swaggerSpec = swaggerJsdoc(options);
+
+2.6 — src/app.ts — Montagem do Express
+typescriptimport "dotenv/config";
+import express from "express";
+import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+import { authRouter } from "./routes/auth";
+import { swaggerSpec } from "./swagger/config";
+
+export const app = express();
+
+app.use(express.json());
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000", // plus-shell
+      "http://localhost:4001", // plus-mfe-auth
+    ],
+    credentials: true,
+  })
+);
+
+// Documentação Swagger
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Rotas
+app.use("/auth", authRouter);
+
+2.7 — src/server.ts — Entry point
+typescriptimport { app } from "./app";
+
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`plus-ms-auth rodando na porta ${PORT}`);
+  console.log(`Documentação: http://localhost:${PORT}/docs`);
+});
+Por que separar? O app.ts exporta o app sem abrir porta. Os testes importam só o app. O server.ts é o que realmente inicia o servidor. Isso evita que os testes fiquem "pendurados" esperando uma porta.
+
+Passo 3 — Testes com Vitest
+Cria a pasta tests/ na raiz do projeto e o arquivo tests/auth.test.ts:
+typescriptimport { describe, it, expect, vi, beforeEach } from "vitest";
+import request from "supertest";
+import { app } from "../src/app";
+
+// Mock do módulo de banco — substitui o pool por um objeto fake
+vi.mock("../src/db/pool", () => ({
+  pool: {
+    query: vi.fn(),
+  },
+}));
+
+// Mock do bcryptjs
+vi.mock("bcryptjs", () => ({
+  default: {
+    compare: vi.fn(),
+  },
+}));
+
+import { pool } from "../src/db/pool";
+import bcrypt from "bcryptjs";
+
+const mockPool = pool as { query: ReturnType<typeof vi.fn> };
+const mockBcrypt = bcrypt as { compare: ReturnType<typeof vi.fn> };
+
+// Usuário fake que simula o retorno do banco
+const fakeUser = {
+  id: "user-123",
+  email: "admin@plus.com",
+  password_hash: "$2a$10$hash",
+  role: "ADMIN",
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("POST /auth/login", () => {
+  it("retorna 400 se email ou password não forem enviados", async () => {
+    const res = await request(app).post("/auth/login").send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/obrigatórios/);
+  });
+
+  it("retorna 401 se o usuário não existir no banco", async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: "inexistente@plus.com", password: "123456" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("Credenciais inválidas");
+  });
+
+  it("retorna 401 se a senha estiver errada", async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [fakeUser] });
+    mockBcrypt.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: fakeUser.email, password: "senhaerrada" });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("retorna token e refresh em login bem-sucedido", async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [fakeUser] });
+    mockBcrypt.compare.mockResolvedValueOnce(true);
+
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: fakeUser.email, password: "123456" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("token");
+    expect(res.body).toHaveProperty("refresh");
+  });
+});
+
+describe("POST /auth/refresh", () => {
+  it("retorna 400 se refresh token não for enviado", async () => {
+    const res = await request(app).post("/auth/refresh").send({});
+    expect(res.status).toBe(400);
+  });
+
+  it("retorna 401 para refresh token inválido", async () => {
+    const res = await request(app)
+      .post("/auth/refresh")
+      .send({ refresh: "token-invalido" });
+    expect(res.status).toBe(401);
+  });
+
+  it("retorna novo token para refresh válido", async () => {
+    // Primeiro faz login para pegar um refresh token real
+    mockPool.query.mockResolvedValueOnce({ rows: [fakeUser] });
+    mockBcrypt.compare.mockResolvedValueOnce(true);
+
+    const loginRes = await request(app)
+      .post("/auth/login")
+      .send({ email: fakeUser.email, password: "123456" });
+
+    const { refresh } = loginRes.body;
+
+    const res = await request(app).post("/auth/refresh").send({ refresh });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("token");
+  });
+});
+
+describe("POST /auth/logout", () => {
+  it("retorna 401 se não estiver autenticado", async () => {
+    const res = await request(app).post("/auth/logout");
+    expect(res.status).toBe(401);
+  });
+
+  it("retorna 204 com token válido", async () => {
+    // Faz login para pegar token
+    mockPool.query.mockResolvedValueOnce({ rows: [fakeUser] });
+    mockBcrypt.compare.mockResolvedValueOnce(true);
+
+    const loginRes = await request(app)
+      .post("/auth/login")
+      .send({ email: fakeUser.email, password: "123456" });
+
+    const { token } = loginRes.body;
+
+    const res = await request(app)
+      .post("/auth/logout")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(204);
+  });
+});
+
+describe("GET /auth/me", () => {
+  it("retorna 401 sem token", async () => {
+    const res = await request(app).get("/auth/me");
+    expect(res.status).toBe(401);
+  });
+
+  it("retorna dados do usuário com token válido", async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [fakeUser] });
+    mockBcrypt.compare.mockResolvedValueOnce(true);
+
+    const loginRes = await request(app)
+      .post("/auth/login")
+      .send({ email: fakeUser.email, password: "123456" });
+
+    const { token } = loginRes.body;
+
+    const res = await request(app)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe(fakeUser.email);
+    expect(res.body.role).toBe(fakeUser.role);
+  });
+});
+Para os testes funcionarem, instala o supertest:
+bashnpm install --save-dev supertest @types/supertest
+
+Passo 4 — Dockerfile atualizado (multi-stage com TypeScript)
+Substitui o Dockerfile atual por este:
+dockerfile# Stage 1: build — compila TypeScript para JavaScript
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# Stage 2: produção — imagem enxuta, só com o JS compilado
+FROM node:20-alpine AS production
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
+EXPOSE 3001
+CMD ["node", "dist/server.js"]
+Por que dois stages? O stage builder instala tudo (incluindo devDependencies como typescript) e compila. O stage production começa do zero, instala só o necessário para rodar, e copia apenas o JS já compilado. A imagem final fica muito menor e sem ferramentas de desenvolvimento.
+
+Passo 5 — GitHub Actions CI/CD
+Cria a pasta .github/workflows/ dentro de plus-ms-auth e o arquivo ci.yml:
+yamlname: CI — plus-ms-auth
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Instalar e testar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar testes
+        run: npm test
+
+  build:
+    name: Build da imagem Docker
+    runs-on: ubuntu-latest
+    needs: test  # só faz o build se os testes passarem
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Build da imagem
+        run: docker build -t plus-ms-auth:${{ github.sha }} .
+O que esse pipeline faz:
+
+Roda em todo push e pull_request para main ou develop
+Job test: instala deps e roda o Vitest
+Job build: só executa se os testes passarem (needs: test), e constrói a imagem Docker
