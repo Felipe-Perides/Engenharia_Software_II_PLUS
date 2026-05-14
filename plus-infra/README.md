@@ -8,9 +8,10 @@ Orquestra os microsserviços, microfrontends e a stack AWS local (Ministack) via
 
 ## Pré-requisitos
 
-| Ferramenta | Versão mínima | Instalação |
-|---|---|---|
-| Docker | 24+ | https://docs.docker.com/get-docker/ |
+| Ferramenta | Versão mínima |
+|---|---|
+| Docker | 24+ |
+| Terraform | 1.15.3+ |
 
 ---
 
