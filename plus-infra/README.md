@@ -58,6 +58,8 @@ cp .env.example .env
 make setup
 ```
 
+Para a variável `JWT_SECRET`, deve-se trocar o placeholder por um valor apropriado (ex.: gerado em https://jwtsecretkeygenerator.com/)
+
 O `make setup`:
 1. Inicializa os providers Terraform (`terraform init`)
 2. Sobe o Ministack e aguarda ele estar saudável
@@ -146,9 +148,3 @@ MS_INVENTORY_PORT=3002
 4. **Se precisar de rotas no API Gateway ou outros recursos AWS**, adicione os recursos correspondentes em `terraform/main.tf` seguindo os padrões já existentes para S3, RDS e API Gateway.
 
 5. Rode `make reset` para recriar a stack com as novas configurações.
-
----
-
-## ADR (decisões de arquitetura)
-
-O documento [**ADR-0001-arquitetura-stack-plus.md**](../ADR-0001-arquitetura-stack-plus.md) na pasta **pai** do `plus-infra` (mesmo nível que este repositório) consolida decisões técnicas, trade-offs, Module Federation, variáveis `VITE_MS_AUTH_BROWSER` / `MFE_AUTH_URL`, e a nota **browser vs API Gateway** em ambiente local.
